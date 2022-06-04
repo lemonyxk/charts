@@ -41,6 +41,11 @@ type Line[T comparable] struct {
 	size       ts.Size
 	xMaxCount  int
 	yPrecision int
+
+	RenderSymbol  func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, symbol string) string
+	RenderEmpty   func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, empty string) string
+	valueMap      map[int]float64
+	scaleValueMap map[int]int
 }
 
 func (l *Line[T]) SetSize(width, height int) {
@@ -77,6 +82,9 @@ func (l *Line[T]) Render() string {
 	var mMap = make(map[int]bool)
 	var yScale = float64(l.height) / yRange
 
+	l.valueMap = make(map[int]float64)
+	l.scaleValueMap = make(map[int]int)
+
 	for i := 0; i < lY; i++ {
 		var x = int(float64(i) * xScale)
 		if xScale >= 1 {
@@ -96,6 +104,8 @@ func (l *Line[T]) Render() string {
 		}
 
 		l.matrix[x][y] = y
+		l.valueMap[x] = l.Y[i]
+		l.scaleValueMap[x] = y
 		mMap[x] = true
 	}
 
@@ -105,8 +115,8 @@ func (l *Line[T]) Render() string {
 
 	var next = 0
 	for i := 0; i < l.width; i++ {
-		var n = getNextY(l.matrix[i])
-		if n == math.MinInt {
+		var n, ok = l.scaleValueMap[i]
+		if !ok {
 			l.matrix[i][next] = next
 		} else {
 			next = n
@@ -118,6 +128,19 @@ func (l *Line[T]) Render() string {
 
 // output
 func (l *Line[T]) outPut() string {
+
+	if l.RenderSymbol == nil {
+		l.RenderSymbol = func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, symbol string) string {
+			return symbol
+		}
+	}
+
+	if l.RenderEmpty == nil {
+		l.RenderEmpty = func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, empty string) string {
+			return empty
+		}
+	}
+
 	var buf bytes.Buffer
 	for i := l.height - 1; i >= 0; i-- {
 		var count = 0
@@ -171,11 +194,11 @@ func (l *Line[T]) outPut() string {
 			}
 
 			if l.matrix[j][i] != math.MinInt {
-				buf.WriteString("┃")
+				l.renderSymbol(j, "┃", &buf)
 			} else {
-				var n = getNextY(l.matrix[j])
-				if i < n {
-					buf.WriteString("┃")
+				var n, ok = l.scaleValueMap[j]
+				if ok && i < n {
+					l.renderEmpty(j, "┃", &buf)
 					continue
 				}
 				buf.WriteString(" ")
@@ -195,32 +218,37 @@ func (l *Line[T]) outPut() string {
 				buf.WriteString("┗")
 			} else {
 
-				var n = math.MinInt
+				var ok = false
+
 				if i < l.width+l.yMaxCount {
-					n = getNextY(l.matrix[i-l.yMaxCount-1])
+					_, ok = l.scaleValueMap[i-l.yMaxCount-1]
 				}
 
-				if n == math.MinInt {
+				if !ok {
 					if i == len(l.Y)+l.yMaxCount {
 						buf.WriteString("┻")
+						// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
 					} else {
 						buf.WriteString("━")
+						// l.renderSymbol(i-l.yMaxCount-1, "━", &buf)
 					}
 				} else {
 					buf.WriteString("┻")
+					// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
 				}
 			}
 			continue
 		}
 
 		if i == l.width+l.yMaxCount && l.xOffset != -1 {
-			var n = math.MinInt
-			n = getNextY(l.matrix[i-l.yMaxCount-1])
+			_, ok := l.scaleValueMap[i-l.yMaxCount-1]
 
-			if n == math.MinInt {
+			if !ok {
 				buf.WriteString("━")
+				// l.renderSymbol(i-l.yMaxCount-1, "━", &buf)
 			} else {
 				buf.WriteString("┻")
+				// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
 			}
 			continue
 		} else {
@@ -281,16 +309,36 @@ func (l *Line[T]) outPut() string {
 
 }
 
-func getNextY(y []int) int {
-	var v = math.MinInt
-	for i := 0; i < len(y); i++ {
-		if y[i] != math.MinInt {
-			v = y[i]
-			break
-		}
+func (l *Line[T]) renderSymbol(j int, symbol string, buf *bytes.Buffer) {
+	if j == 0 {
+		buf.WriteString(l.RenderSymbol(l.valueMap[j], true, l.valueMap[j], true, symbol))
+	} else {
+		var lastValue, lastOK = l.valueMap[j-1]
+		var value, ok = l.valueMap[j]
+		buf.WriteString(l.RenderSymbol(lastValue, lastOK, value, ok, symbol))
 	}
-	return v
 }
+
+func (l *Line[T]) renderEmpty(j int, symbol string, buf *bytes.Buffer) {
+	if j == 0 {
+		buf.WriteString(l.RenderEmpty(l.valueMap[j], true, l.valueMap[j], true, symbol))
+	} else {
+		var lastValue, lastOK = l.valueMap[j-1]
+		var value, ok = l.valueMap[j]
+		buf.WriteString(l.RenderEmpty(lastValue, lastOK, value, ok, symbol))
+	}
+}
+
+// func getNextY(y []int) int {
+// 	var v = math.MinInt
+// 	for i := 0; i < len(y); i++ {
+// 		if y[i] != math.MinInt {
+// 			v = y[i]
+// 			break
+// 		}
+// 	}
+// 	return v
+// }
 
 func (l *Line[T]) init() {
 	var size, err = ts.GetSize()

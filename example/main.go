@@ -15,6 +15,7 @@ import (
 
 	"github.com/lemonyxk/charts"
 	"github.com/lemonyxk/charts/example/data"
+	"github.com/lemonyxk/console"
 	"github.com/olekukonko/ts"
 )
 
@@ -54,6 +55,14 @@ func main() {
 	_, _, _, _, _ = t1, t2, t3, t4, t
 
 	var l = charts.New(t, p)
+
+	l.RenderSymbol = func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, symbol string) string {
+		return console.FgRed.Sprint(symbol)
+	}
+
+	l.RenderEmpty = func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, empty string) string {
+		return console.FgGreen.Sprint(empty)
+	}
 
 	l.SetYPrecision(2)
 
