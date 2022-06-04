@@ -55,6 +55,8 @@ func main() {
 
 	var l = charts.New(t, p)
 
+	l.SetYPrecision(2)
+
 	l.SetSize(size.Col(), size.Row())
 
 	var r = l.Render()

@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/text"
@@ -31,19 +32,24 @@ type Line[T comparable] struct {
 	width  int
 	height int
 
-	matrix    [][]int
-	xOffset   int
-	yOffset   int
-	yMaxCount int
-	yMin      float64
-	yMax      float64
-	size      ts.Size
-	xMaxCount int
+	matrix     [][]int
+	xOffset    int
+	yOffset    int
+	yMaxCount  int
+	yMin       float64
+	yMax       float64
+	size       ts.Size
+	xMaxCount  int
+	yPrecision int
 }
 
 func (l *Line[T]) SetSize(width, height int) {
 	l.width = width
 	l.height = height
+}
+
+func (l *Line[T]) SetYPrecision(precision int) {
+	l.yPrecision = precision
 }
 
 func (l *Line[T]) Render() string {
@@ -369,17 +375,24 @@ func getMaxRuneCount[T any](res []T) int {
 }
 
 func (l *Line[T]) parseFloatToString(f float64) string {
-	var s = fmt.Sprintf("%.1f", f)
-	if text.RuneCount(s) < 4 {
-		return fmt.Sprintf("%.2f", f)
+	var yPrecision = l.yPrecision
+	if l.yPrecision == 0 {
+		yPrecision = 1
 	}
+	var format = "%." + strconv.Itoa(yPrecision) + "f"
+	var s = fmt.Sprintf(format, f)
 	return s
 }
 
 func (l *Line[T]) getMaxFloatCount(res []float64) int {
 	var max = 0
+	var yPrecision = l.yPrecision
+	if l.yPrecision == 0 {
+		yPrecision = 1
+	}
+	var format = "%." + strconv.Itoa(yPrecision) + "f"
 	for _, v := range res {
-		var s = fmt.Sprintf("%.1f", v)
+		var s = fmt.Sprintf(format, v)
 		var c = text.RuneCount(s)
 		if c > max {
 			max = c
