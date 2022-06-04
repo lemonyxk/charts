@@ -332,7 +332,7 @@ func (l *Line[T]) init() {
 	if scale < 1 {
 		scale = 1
 	} else {
-		scale = scale * 1.5 * float64(size.Col()) / float64(l.width)
+		scale = scale * 2 * float64(size.Col()) / float64(l.width)
 	}
 
 	var xLen = int(float64(len(l.X)) / (scale))
