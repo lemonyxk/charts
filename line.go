@@ -39,7 +39,6 @@ type Line[T comparable] struct {
 	yMax      float64
 	size      ts.Size
 	xMaxCount int
-	xEnd      T
 }
 
 func (l *Line[T]) SetSize(width, height int) {
@@ -224,19 +223,9 @@ func (l *Line[T]) outPut() string {
 
 	}
 
-	var c = 0
+	var count = 0
 
-	var div = len(l.X) - 1
-	if len(l.X) == 1 {
-		div = 1
-	}
-
-	var uSpace = l.width - len(l.X)*l.xMaxCount
-	var uSpaceR = 0
-	if len(l.X) > 1 {
-		uSpaceR = uSpace / (len(l.X) - 1)
-	}
-	var uTimes = 0
+	var spaceWidth = (l.width - l.xMaxCount*len(l.X)) / (len(l.X) - 1)
 
 	for i := 0; i < l.size.Col(); i++ {
 		if i >= 0 && i < l.yMaxCount {
@@ -246,45 +235,29 @@ func (l *Line[T]) outPut() string {
 
 		if i >= l.yMaxCount && i < l.width+l.yMaxCount {
 
-			if len(l.X) != 0 && (i-l.yMaxCount)%((l.width-l.yMaxCount)/(div)) == 0 && c < len(l.X) {
-				var s = fmt.Sprintf("%v", l.X[c])
-				var r = text.RuneCount(s)
-				if r < l.xMaxCount {
-					if c == 0 {
-						s = s + strings.Repeat(" ", l.xMaxCount-r)
-					} else {
-						s = strings.Repeat(" ", l.xMaxCount-r) + s
-					}
-				}
+			var index = i - l.yMaxCount
 
-				buf.WriteString(s)
-
-				c++
-
-				if c == len(l.X) && l.X[len(l.X)-1] == l.xEnd {
-					continue
-				}
-
-				var add = 0
-				if uTimes == div-1 && l.X[len(l.X)-1] == l.xEnd {
-					add = l.width - (uSpaceR)*div - l.xMaxCount*(div+1)
-				} else if c == len(l.X)-1 {
-					add = l.width - (uSpaceR)*(len(l.X)) - l.xMaxCount*(len(l.X)+1)
-				}
-
-				if uSpaceR+add < 0 {
-					add = 0
-				}
-
-				buf.WriteString(strings.Repeat(" ", uSpaceR+add))
-				uTimes++
+			if count > len(l.X)-1 {
+				continue
 			}
 
-			if i == l.width+l.yMaxCount-l.xMaxCount {
-				if len(l.X) > 0 && l.X[len(l.X)-1] != l.xEnd {
-					buf.WriteString(fmt.Sprintf("%v", l.xEnd))
+			var s = fmt.Sprintf("%v", l.X[count])
+			var r = text.RuneCount(s)
+			if r < l.xMaxCount {
+				if count == 0 {
+					s = s + strings.Repeat(" ", l.xMaxCount-r) + strings.Repeat(" ", spaceWidth)
+				} else if count == len(l.X)-1 {
+					s = strings.Repeat(" ", l.xMaxCount-r) + strings.Repeat(" ", l.width-index-l.xMaxCount) + s
+				} else {
+					s = strings.Repeat(" ", l.xMaxCount-r) + s + strings.Repeat(" ", spaceWidth)
 				}
 			}
+
+			buf.WriteString(s)
+
+			i += l.xMaxCount + spaceWidth - 1
+
+			count++
 
 			continue
 		}
@@ -359,26 +332,25 @@ func (l *Line[T]) init() {
 	if scale < 1 {
 		scale = 1
 	} else {
-		scale = scale * 2 * float64(size.Col()) / float64(l.width)
+		scale = scale * 1.5 * float64(size.Col()) / float64(l.width)
 	}
 
 	var xLen = int(float64(len(l.X)) / (scale))
 
-	var b = make([]T, xLen)
+	var b []T
 	for i := 0; i < xLen; i++ {
-		b[i] = l.X[int((scale)*float64(i))]
+		b = append(b, l.X[int((scale)*float64(i))])
 	}
 
-	if len(l.X) > 0 {
-		l.xEnd = l.X[len(l.X)-1]
-	}
-
-	if len(b) == 0 {
-		if len(l.X) > 0 {
-			b = make([]T, 2)
-			b[0] = l.X[0]
-			b[1] = l.xEnd
+	if len(l.X) > 1 && len(b) > 1 {
+		if b[len(b)-1] != l.X[len(l.X)-1] {
+			b = append(b, l.X[len(l.X)-1])
 		}
+	}
+
+	if len(b) == 0 && len(l.X) > 0 {
+		b = make([]T, 1)
+		b[0] = l.X[0]
 	}
 
 	l.X = b

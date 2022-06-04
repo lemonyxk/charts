@@ -53,9 +53,9 @@ func main() {
 
 	_, _, _, _, _ = t1, t2, t3, t4, t
 
-	var l = charts.New(t1, p)
+	var l = charts.New(t, p)
 
-	l.SetSize(size.Col()/3, size.Row()/3)
+	l.SetSize(size.Col(), size.Row())
 
 	var r = l.Render()
 
