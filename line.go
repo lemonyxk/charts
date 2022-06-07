@@ -21,13 +21,14 @@ import (
 	"github.com/olekukonko/ts"
 )
 
-func New[T comparable](x []T, y []float64) *Line[T] {
-	return &Line[T]{X: x, Y: y}
+func New[T comparable](x []T, y []float64, maxYLen int) *Line[T] {
+	return &Line[T]{X: x, Y: y, maxYLen: maxYLen}
 }
 
 type Line[T comparable] struct {
-	X []T
-	Y []float64
+	X       []T
+	Y       []float64
+	maxYLen int
 
 	width  int
 	height int
@@ -44,6 +45,7 @@ type Line[T comparable] struct {
 
 	RenderSymbol  func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, symbol string) string
 	RenderEmpty   func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, empty string) string
+	RenderXBorder func(isEmpty bool, x string) string
 	valueMap      map[int]float64
 	scaleValueMap map[int]int
 }
@@ -77,7 +79,7 @@ func (l *Line[T]) Render() string {
 
 	var lY = len(l.Y)
 
-	var xScale = float64(l.width) / float64(lY)
+	var xScale = float64(l.width) / float64(l.maxYLen)
 
 	var mMap = make(map[int]bool)
 	var yScale = float64(l.height) / yRange
@@ -113,16 +115,6 @@ func (l *Line[T]) Render() string {
 		return l.outPut()
 	}
 
-	var next = 0
-	for i := 0; i < l.width; i++ {
-		var n, ok = l.scaleValueMap[i]
-		if !ok {
-			l.matrix[i][next] = next
-		} else {
-			next = n
-		}
-	}
-
 	return l.outPut()
 }
 
@@ -138,6 +130,12 @@ func (l *Line[T]) outPut() string {
 	if l.RenderEmpty == nil {
 		l.RenderEmpty = func(lastValue float64, isLastEmpty bool, value float64, isEmpty bool, empty string) string {
 			return empty
+		}
+	}
+
+	if l.RenderXBorder == nil {
+		l.RenderXBorder = func(isEmpty bool, x string) string {
+			return x
 		}
 	}
 
@@ -225,16 +223,9 @@ func (l *Line[T]) outPut() string {
 				}
 
 				if !ok {
-					if i == len(l.Y)+l.yMaxCount {
-						buf.WriteString("┻")
-						// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
-					} else {
-						buf.WriteString("━")
-						// l.renderSymbol(i-l.yMaxCount-1, "━", &buf)
-					}
+					l.renderXBorder(ok, "━", &buf)
 				} else {
-					buf.WriteString("┻")
-					// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
+					l.renderXBorder(ok, "┻", &buf)
 				}
 			}
 			continue
@@ -244,11 +235,9 @@ func (l *Line[T]) outPut() string {
 			_, ok := l.scaleValueMap[i-l.yMaxCount-1]
 
 			if !ok {
-				buf.WriteString("━")
-				// l.renderSymbol(i-l.yMaxCount-1, "━", &buf)
+				l.renderXBorder(ok, "━", &buf)
 			} else {
-				buf.WriteString("┻")
-				// l.renderSymbol(i-l.yMaxCount-1, "┻", &buf)
+				l.renderXBorder(ok, "┻", &buf)
 			}
 			continue
 		} else {
@@ -269,7 +258,7 @@ func (l *Line[T]) outPut() string {
 
 		if i >= l.yMaxCount && i < l.width+l.yMaxCount {
 
-			var index = i - l.yMaxCount
+			// var index = i - l.yMaxCount
 
 			if count > len(l.X)-1 {
 				continue
@@ -280,8 +269,6 @@ func (l *Line[T]) outPut() string {
 			if r < l.xMaxCount {
 				if count == 0 {
 					s = s + strings.Repeat(" ", l.xMaxCount-r) + strings.Repeat(" ", spaceWidth)
-				} else if count == len(l.X)-1 {
-					s = strings.Repeat(" ", l.xMaxCount-r) + strings.Repeat(" ", l.width-index-l.xMaxCount) + s
 				} else {
 					s = strings.Repeat(" ", l.xMaxCount-r) + s + strings.Repeat(" ", spaceWidth)
 				}
@@ -327,6 +314,10 @@ func (l *Line[T]) renderEmpty(j int, symbol string, buf *bytes.Buffer) {
 		var value, ok = l.valueMap[j]
 		buf.WriteString(l.RenderEmpty(lastValue, lastOK, value, ok, symbol))
 	}
+}
+
+func (l *Line[T]) renderXBorder(isEmpty bool, symbol string, buf *bytes.Buffer) {
+	buf.WriteString(l.RenderXBorder(isEmpty, symbol))
 }
 
 // func getNextY(y []int) int {
