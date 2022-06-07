@@ -223,9 +223,9 @@ func (l *Line[T]) outPut() string {
 				}
 
 				if !ok {
-					l.renderXBorder(ok, "━", &buf)
+					l.renderXBorder(true, "━", &buf)
 				} else {
-					l.renderXBorder(ok, "┻", &buf)
+					l.renderXBorder(false, "┻", &buf)
 				}
 			}
 			continue
@@ -235,9 +235,9 @@ func (l *Line[T]) outPut() string {
 			_, ok := l.scaleValueMap[i-l.yMaxCount-1]
 
 			if !ok {
-				l.renderXBorder(ok, "━", &buf)
+				l.renderXBorder(true, "━", &buf)
 			} else {
-				l.renderXBorder(ok, "┻", &buf)
+				l.renderXBorder(false, "┻", &buf)
 			}
 			continue
 		} else {
